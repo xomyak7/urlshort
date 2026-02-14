@@ -109,7 +109,7 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 
     // Генерируем короткий ID (в реальном приложении здесь должна быть более сложная логика)
 	// Для примера используем фиксированный ID
-	shortID := /* "/EwHXdJfB" // */generateShortID(originalURL)
+	shortID := /* "/EwHXdJfB" // */"/" + generateShortID(originalURL)
 
     // Сохраняем соответствие URL и его сокращения
     urlStorage[shortID] = originalURL
