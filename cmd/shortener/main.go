@@ -63,7 +63,7 @@ func webhook(w http.ResponseWriter, r *http.Request) {
 func handleGet(w http.ResponseWriter, r *http.Request) {
     // Проверяем Content-Type
     if r.Header.Get("Content-Type") != "text/plain" {
-        http.Error(w, "" /*"Content-Type must be text/plain" */, http.StatusBadRequest)
+        http.Error(w, /* "" */ "Content-Type must be text/plain", http.StatusBadRequest)
         return
     }
     // Получаем id из пути
@@ -71,20 +71,20 @@ func handleGet(w http.ResponseWriter, r *http.Request) {
 
     // Проверяем, что ID не пустой и нет дополнительных слешей
     if id == "" {
-        http.Error(w, "" /*"Invalid ID" */, http.StatusBadRequest)
+        http.Error(w, /* "" */ "Invalid ID", http.StatusBadRequest)
 		return
     }
 
     // Ищем оригинальный URL в хранилище
     originalURL, exists := urlStorage[id]
     if !exists {
-        http.Error(w, "" /*"ID not found" */, http.StatusBadRequest)
+        http.Error(w, /* "" */ "ID not found", http.StatusBadRequest)
 		return
     }
 
-    // Выполняем редирект
-    w.Header().Set("Location", originalURL)
+    // Выдаем сообщение с оригинальным URL
     w.WriteHeader(http.StatusTemporaryRedirect)
+    w.Write([]byte("Location: " + originalURL))
 }
 
 func handlePost(w http.ResponseWriter, r *http.Request) {
