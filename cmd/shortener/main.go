@@ -67,7 +67,7 @@ func handleGet(w http.ResponseWriter, r *http.Request) {
         return
     }
     // Получаем id из пути
-    id := strings.TrimPrefix(r.URL.Path, "/")
+    id := r.URL.Path
 
     // Проверяем, что ID не пустой и нет дополнительных слешей
     if id == "" {
