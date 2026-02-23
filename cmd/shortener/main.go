@@ -5,14 +5,20 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"io"
+	"log"
+
 	// "log"
 	"net/http"
 	"strings"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/xomyak7/urlshort/internal/config"
 )
 
 // Простое хранилище в памяти (для демонстрации)
 var urlStorage = make(map[string]string)
-const localhost = "http://localhost:8080"
+var localhost = "http://localhost:8080"
+var baseAddr = "http://localhost:8080/"
 
 // Генерация ID путем хэширования и кодирования
 func generateShortID(originalURL string) string {
@@ -38,46 +44,41 @@ func main() {
 
 // функция run будет полезна при инициализации зависимостей сервера перед запуском
 func run() error {
-    return http.ListenAndServe(`:8080`, http.HandlerFunc(webhook))
-}
+    cfg := config.Load()
+    localhost = "http://" + cfg.Host
+    baseAddr  = "http://" + cfg.BaseAddr
 
-// функция webhook — обработчик HTTP-запроса
-func webhook(w http.ResponseWriter, r *http.Request) {
-    // 1. Важно! Закрываем тело запроса по окончании работы функции,
-    //    чтобы освободить ресурсы сетевого соединения.
-    defer r.Body.Close()
-    
-    // // разрешаем только POST-запросы
-    // w.WriteHeader(http.StatusMethodNotAllowed)
+    r := chi.NewRouter()
 
-    switch r.Method {
-        case http.MethodGet:
-            handleGet(w, r)
-        case http.MethodPost:
-            handlePost(w, r)
-        default:
-            http.Error(w, "" /*"Method not allowed" */, http.StatusBadRequest)
-    }
+    // Используем chi для маршрутизации - обратите внимание на {id} в пути
+    r.Get("/{id}", handleGet)  // GET запросы на /{id}
+    r.Post("/", handlePost)    // POST запросы на /
+
+    log.Printf("Server starting on %s", cfg.Host)
+    return http.ListenAndServe(cfg.Host, r)
 }
 
 func handleGet(w http.ResponseWriter, r *http.Request) {
-    // Получаем id из пути
-    id := r.URL.Path
-
-    // Проверяем, что ID не пустой и нет дополнительных слешей
+    // Получаем id из параметров маршрута chi (а не из r.URL.Path)
+    id := chi.URLParam(r, "id")
+    
+    // Проверяем, что ID не пустой
     if id == "" {
-        http.Error(w, "" /*"Invalid ID" */, http.StatusBadRequest)
-		return
+        http.Error(w, "Invalid ID", http.StatusBadRequest)
+        return
     }
+
+    // Формируем ключ с ведущим слешем
+    key := "/" + id
 
     // Ищем оригинальный URL в хранилище
-    originalURL, exists := urlStorage[id]
+    originalURL, exists := urlStorage[key]
     if !exists {
-        http.Error(w, "" /*"ID not found" */, http.StatusBadRequest)
-		return
+        http.Error(w, "ID not found", http.StatusNotFound) // Используем 404, а не 400
+        return
     }
 
-    // Выполняем редирект
+    // Выполняем редирект - сначала устанавливаем заголовок, потом статус
     w.Header().Set("Location", originalURL)
     w.WriteHeader(http.StatusTemporaryRedirect)
 }
@@ -110,7 +111,7 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
     urlStorage[shortID] = originalURL
 
     // Формируем сокращенный URL
-    shortURL := localhost + shortID
+    shortURL := baseAddr + shortID
 
     // Устанавливаем заголовки и статус
     w.Header().Set("Content-Type", "text/plain")
