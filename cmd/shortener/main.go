@@ -6,19 +6,27 @@ import (
 	"encoding/base64"
 	"io"
 	"log"
+	// "os"
 
 	// "log"
 	"net/http"
 	"strings"
 
+	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi/v5"
 	"github.com/xomyak7/urlshort/internal/config"
 )
 
 // Простое хранилище в памяти (для демонстрации)
+
+type Config struct {
+    SERVER_ADDRESS  string `env:"SERVER_ADDRESS"`  
+    BASE_URL        string `env:"BASE_URL"`  
+}
+
 var urlStorage = make(map[string]string)
-var localhost = "http://localhost:8080"
-var baseAddr = "http://localhost:8080/"
+var SERVER_ADDRESS  = "localhost:8080/"
+var BASE_URL        = "localhost:8080"
 
 // Генерация ID путем хэширования и кодирования
 func generateShortID(originalURL string) string {
@@ -44,9 +52,21 @@ func main() {
 
 // функция run будет полезна при инициализации зависимостей сервера перед запуском
 func run() error {
+    var cfg_env Config
+    env.Parse(&cfg_env)
     cfg := config.Load()
-    localhost = "http://" + cfg.Host
-    baseAddr  = "http://" + cfg.BaseAddr
+
+    if cfg_env.SERVER_ADDRESS != "" {
+        SERVER_ADDRESS = cfg_env.SERVER_ADDRESS
+    } else if cfg.SERVER_ADDRESS != "" {
+        SERVER_ADDRESS = cfg.SERVER_ADDRESS
+    }
+
+    if cfg_env.BASE_URL != "" {
+        BASE_URL = "http://" + cfg_env.BASE_URL
+    } else if cfg.BASE_URL != "" {
+        BASE_URL = "http://" + cfg.BASE_URL
+    }
 
     r := chi.NewRouter()
 
@@ -54,8 +74,9 @@ func run() error {
     r.Get("/{id}", handleGet)  // GET запросы на /{id}
     r.Post("/", handlePost)    // POST запросы на /
 
-    log.Printf("Server starting on %s", cfg.Host)
-    return http.ListenAndServe(cfg.Host, r)
+    log.Printf("Server starting on %s", SERVER_ADDRESS)
+    log.Printf("Base URL = %s", BASE_URL)
+    return http.ListenAndServe(SERVER_ADDRESS, r)
 }
 
 func handleGet(w http.ResponseWriter, r *http.Request) {
@@ -111,7 +132,7 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
     urlStorage[shortID] = originalURL
 
     // Формируем сокращенный URL
-    shortURL := baseAddr + shortID
+    shortURL := BASE_URL + shortID
 
     // Устанавливаем заголовки и статус
     w.Header().Set("Content-Type", "text/plain")
